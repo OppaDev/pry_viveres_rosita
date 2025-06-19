@@ -8,7 +8,7 @@ abstract class ProductRemoteDataSource {
 
 class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
   final http.Client client;
-  final String _baseUrl = 'http://YOUR_API_IP:3000/api/v1'; // CAMBIAR ESTO
+  final String _baseUrl = 'http://192.168.0.101:3000/api/v1'; // CAMBIAR ESTO
 
   ProductRemoteDataSourceImpl({required this.client});
 

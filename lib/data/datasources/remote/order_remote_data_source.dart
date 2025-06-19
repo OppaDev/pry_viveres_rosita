@@ -12,7 +12,7 @@ abstract class OrderRemoteDataSource {
 
 class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
   final http.Client client;
-  final String _baseUrl = 'http://YOUR_API_IP:3000/api/v1'; // CAMBIAR ESTO
+  final String _baseUrl = 'http://192.168.100.31:3000/api/v1'; // CAMBIAR ESTO
 
   OrderRemoteDataSourceImpl({required this.client});
 
