@@ -4,6 +4,7 @@ import 'package:pry_viveres_rosita/application/usecases/get_order_by_id_usecase.
 import 'package:pry_viveres_rosita/application/usecases/create_order_usecase.dart'; // Ajusta la ruta
 import 'package:pry_viveres_rosita/application/usecases/add_order_item_usecase.dart'; // Ajusta la ruta
 import 'package:pry_viveres_rosita/application/usecases/get_products_usecase.dart'; // Ajusta la ruta
+import 'package:pry_viveres_rosita/application/usecases/get_users_usecase.dart'; // Ajusta la ruta
 import 'repository_providers.dart'; // Ajusta la ruta
 
 final getOrdersUseCaseProvider = Provider<GetOrdersUseCase>((ref) {
@@ -29,4 +30,14 @@ final addOrderItemUseCaseProvider = Provider<AddOrderItemUseCase>((ref) {
 final getProductsUseCaseProvider = Provider<GetProductsUseCase>((ref) {
   final repository = ref.watch(productRepositoryProvider);
   return GetProductsUseCase(repository);
+});
+
+final getUsersUseCaseProvider = Provider<GetUsersUseCase>((ref) {
+  final repository = ref.watch(userRepositoryProvider);
+  return GetUsersUseCase(repository);
+});
+
+final getUserByIdUseCaseProvider = Provider<GetUserByIdUseCase>((ref) {
+  final repository = ref.watch(userRepositoryProvider);
+  return GetUserByIdUseCase(repository);
 });

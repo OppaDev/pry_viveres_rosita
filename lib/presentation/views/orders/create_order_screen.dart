@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pry_viveres_rosita/domain/entities/order_item_entity.dart';
 import 'package:pry_viveres_rosita/domain/entities/product_entity.dart';
+import 'package:pry_viveres_rosita/domain/entities/user_entity.dart';
 import 'package:pry_viveres_rosita/presentation/providers/order_providers.dart';
 import 'package:pry_viveres_rosita/presentation/widgets/widgets.dart';
 
@@ -15,8 +16,9 @@ class CreateOrderScreen extends ConsumerStatefulWidget {
 class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
   final _formKey = GlobalKey<FormState>();
   final List<OrderItemEntity> _currentOrderItems = [];
-  // En una app real, el userId vendría del usuario logueado
-  final int _userId = 3; // Ejemplo: ID de usuario fijo
+
+  // Usuario seleccionado dinámicamente
+  UserEntity? _selectedUser;
 
   void _addProductToOrder(ProductEntity product, int quantity) {
     if (quantity <= 0) return;
@@ -156,6 +158,17 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
   }
 
   Future<void> _submitOrder() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (_selectedUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor seleccione un cliente.')),
+      );
+      return;
+    }
+
     if (_currentOrderItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -168,7 +181,7 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
     try {
       await ref
           .read(createOrderNotifierProvider.notifier)
-          .createOrder(userId: _userId, items: _currentOrderItems);
+          .createOrder(userId: _selectedUser!.id, items: _currentOrderItems);
       // Escuchar el resultado en el listener de abajo
     } catch (e) {
       // El notifier ya maneja el estado de error
@@ -215,9 +228,15 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'Cliente ID: $_userId (Ejemplo)',
-                style: Theme.of(context).textTheme.titleMedium,
+              UserSelector(
+                label: 'Seleccionar Cliente',
+                selectedUser: _selectedUser,
+                onUserSelected: (user) {
+                  setState(() {
+                    _selectedUser = user;
+                  });
+                },
+                hint: 'Seleccione el cliente para este pedido',
               ),
               const SizedBox(height: 20),
               ElevatedButton.icon(

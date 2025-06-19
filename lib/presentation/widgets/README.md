@@ -204,6 +204,26 @@ LoadingIconButton(
 )
 ```
 
+### 12. UserSelector (`user_selector.dart`)
+Widget para selección dinámica de usuarios/clientes.
+
+**Características:**
+- Dropdown con lista de usuarios desde la API
+- Estados de carga, error y vacío integrados
+- Validación automática de selección
+- Muestra nombre y email del usuario
+- Manejo de errores con opción de reintento
+
+**Uso:**
+```dart
+UserSelector(
+  label: 'Seleccionar Cliente',
+  selectedUser: selectedUser,
+  onUserSelected: (user) => setState(() => selectedUser = user),
+  hint: 'Seleccione el cliente para este pedido',
+)
+```
+
 ## Archivo de Barril (`widgets.dart`)
 
 Todos los widgets están exportados a través del archivo `widgets.dart` para facilitar las importaciones:

@@ -10,3 +10,4 @@ export 'custom_app_bar.dart';
 export 'custom_floating_action_button.dart';
 export 'custom_list_view.dart';
 export 'loading_button.dart';
+export 'user_selector.dart';

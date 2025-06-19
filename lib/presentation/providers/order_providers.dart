@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pry_viveres_rosita/domain/entities/order_entity.dart'; // Ajusta la ruta
 import 'package:pry_viveres_rosita/domain/entities/order_item_entity.dart'; // Ajusta la ruta
 import 'package:pry_viveres_rosita/domain/entities/product_entity.dart'; // Ajusta la ruta
+import 'package:pry_viveres_rosita/domain/entities/user_entity.dart'; // Ajusta la ruta
 import 'package:pry_viveres_rosita/application/usecases/create_order_usecase.dart'; // Import del use case
 import 'package:pry_viveres_rosita/application/usecases/add_order_item_usecase.dart'; // Import del use case
 import 'use_case_providers.dart'; // Ajusta la ruta
@@ -26,6 +27,12 @@ final orderDetailProvider = FutureProvider.family<OrderEntity, String>((
 final productsListProvider = FutureProvider<List<ProductEntity>>((ref) async {
   final getProductsUseCase = ref.watch(getProductsUseCaseProvider);
   return getProductsUseCase.call();
+});
+
+// Provider para obtener la lista de usuarios/clientes
+final usersListProvider = FutureProvider<List<UserEntity>>((ref) async {
+  final getUsersUseCase = ref.watch(getUsersUseCaseProvider);
+  return getUsersUseCase.call();
 });
 
 // Para operaciones de escritura (crear, agregar), usarías StateNotifierProvider
