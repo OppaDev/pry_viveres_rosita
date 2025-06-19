@@ -2,7 +2,7 @@ class UserEntity {
   final int id;
   final String name;
   final String email;
-  // ... otros campos si son necesarios desde la API (phone, address, etc.)
+  
 
   UserEntity({
     required this.id,

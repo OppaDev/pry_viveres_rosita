@@ -178,6 +178,32 @@ CustomListView<ProductEntity>(
 )
 ```
 
+### 11. LoadingButton (`loading_button.dart`)
+Botones con estados de carga integrados.
+
+**Características:**
+- ElevatedButton con indicador de carga
+- IconButton con indicador de carga
+- Deshabilitación automática durante carga
+- Icono y texto personalizables
+
+**Uso:**
+```dart
+LoadingButton(
+  text: 'Confirmar',
+  isLoading: isProcessing,
+  onPressed: () => processAction(),
+  icon: Icons.check,
+)
+
+LoadingIconButton(
+  icon: Icons.refresh,
+  isLoading: isRefreshing,
+  onPressed: () => refresh(),
+  tooltip: 'Actualizar',
+)
+```
+
 ## Archivo de Barril (`widgets.dart`)
 
 Todos los widgets están exportados a través del archivo `widgets.dart` para facilitar las importaciones:

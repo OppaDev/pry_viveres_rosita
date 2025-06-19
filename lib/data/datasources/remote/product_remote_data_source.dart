@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:pry_viveres_rosita/domain/entities/product_entity.dart'; // Ajusta la ruta
+import 'package:pry_viveres_rosita/core/config/app_config.dart';
 
 abstract class ProductRemoteDataSource {
   Future<List<ProductEntity>> getProducts();
@@ -8,13 +9,12 @@ abstract class ProductRemoteDataSource {
 
 class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
   final http.Client client;
-  final String _baseUrl = 'http://192.168.0.101:3000/api/v1'; // CAMBIAR ESTO
 
   ProductRemoteDataSourceImpl({required this.client});
 
   @override
   Future<List<ProductEntity>> getProducts() async {
-    final response = await client.get(Uri.parse('$_baseUrl/products'));
+    final response = await client.get(Uri.parse(AppConfig.productsUrl));
     if (response.statusCode == 200) {
       final List<dynamic> jsonData = json.decode(response.body);
       return jsonData.map((data) => ProductEntity.fromJson(data)).toList();
