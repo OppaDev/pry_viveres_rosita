@@ -38,76 +38,112 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
   }
 
   void _showSelectProductDialog() {
-    final productsAsyncValue = ref.read(
-      productsListProvider,
-    ); // Leer una vez para el dialogo
+    final productsAsyncValue = ref.read(productsListProvider);
 
-    productsAsyncValue.when(
-      data: (products) {
-        ProductEntity? selectedProduct =
-            products.isNotEmpty ? products.first : null;
-        int quantity = 1;
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return productsAsyncValue.when(
+          data: (products) {
+            if (products.isEmpty) {
+              return AlertDialog(
+                title: const Text('Seleccionar Producto'),
+                content: const Text('No hay productos disponibles.'),
+                actions: <Widget>[
+                  TextButton(
+                    child: const Text('Cerrar'),
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                  ),
+                ],
+              );
+            }
 
-        showDialog(
-          context: context,
-          builder: (BuildContext dialogContext) {
+            // Usaremos un StatefulWidget simple dentro del diálogo para manejar la cantidad
+            ProductEntity? tempSelectedProduct;
+            int quantity = 1;
+
             return StatefulBuilder(
-              // Para actualizar el Dropdown dentro del dialogo
-              builder: (context, setDialogState) {
+              // Para manejar el estado de la cantidad internamente
+              builder: (stfContext, setDialogState) {
                 return AlertDialog(
                   title: const Text('Seleccionar Producto'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (products.isEmpty)
-                        const Text('No hay productos disponibles.')
-                      else
-                        DropdownButtonFormField<ProductEntity>(
-                          value: selectedProduct,
-                          hint: const Text('Seleccione un producto'),
-                          items:
-                              products.map((ProductEntity product) {
-                                return DropdownMenuItem<ProductEntity>(
-                                  value: product,
-                                  child: Text(
-                                    "${product.name} - \$${product.price.toStringAsFixed(2)} (Stock: ${product.stock})",
-                                  ),
-                                );
-                              }).toList(),
-                          onChanged: (ProductEntity? newValue) {
-                            setDialogState(() {
-                              selectedProduct = newValue;
-                            });
-                          },
-                          validator:
-                              (value) =>
-                                  value == null
-                                      ? 'Seleccione un producto'
-                                      : null,
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 8.0,
+                    horizontal: 0,
+                  ), // Ajustar padding
+                  content: SizedBox(
+                    // Darle un tamaño al contenido del diálogo
+                    width: double.maxFinite,
+                    height:
+                        MediaQuery.of(context).size.height *
+                        0.5, // ~50% de la altura de pantalla
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Expanded(
+                          child: ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: products.length,
+                            itemBuilder: (context, index) {
+                              final product = products[index];
+                              bool isSelected =
+                                  tempSelectedProduct?.id == product.id;
+                              return ListTile(
+                                // Usando tu ProductCard simplificado o un ListTile customizado
+                                leading:
+                                    product.image.isNotEmpty
+                                        ? CircleAvatar(
+                                          backgroundImage: NetworkImage(
+                                            product.image,
+                                          ),
+                                        )
+                                        : const CircleAvatar(
+                                          child: Icon(Icons.inventory_2),
+                                        ),
+                                title: Text(
+                                  product.name,
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                                subtitle: Text(
+                                  "Stock: ${product.stock} - \$${product.price.toStringAsFixed(2)}",
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                                tileColor:
+                                    isSelected
+                                        ? Theme.of(context)
+                                            .colorScheme
+                                            .primaryContainer
+                                            .withOpacity(0.3)
+                                        : null,
+                                onTap: () {
+                                  setDialogState(() {
+                                    tempSelectedProduct = product;
+                                  });
+                                },
+                              );
+                            },
+                          ),
                         ),
-                      const SizedBox(height: 10),
-                      TextFormField(
-                        initialValue: quantity.toString(),
-                        decoration: const InputDecoration(
-                          labelText: 'Cantidad',
-                        ),
-                        keyboardType: TextInputType.number,
-                        onChanged: (val) {
-                          quantity = int.tryParse(val) ?? 1;
-                        },
-                        validator: (value) {
-                          if (value == null || value.isEmpty)
-                            return 'Ingrese cantidad';
-                          final qty = int.tryParse(value);
-                          if (qty == null || qty <= 0)
-                            return 'Cantidad debe ser > 0';
-                          if (selectedProduct != null &&
-                              qty > selectedProduct!.stock)
-                            return 'Stock insuficiente (${selectedProduct!.stock})';
-                          return null;
-                        },
-                      ),
-                    ],
+                        if (tempSelectedProduct !=
+                            null) // Mostrar campo de cantidad solo si se seleccionó un producto
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: TextFormField(
+                              initialValue: quantity.toString(),
+                              decoration: InputDecoration(
+                                labelText:
+                                    'Cantidad para ${tempSelectedProduct!.name}',
+                                hintText: 'Max: ${tempSelectedProduct!.stock}',
+                                border: const OutlineInputBorder(),
+                              ),
+                              keyboardType: TextInputType.number,
+                              onChanged: (val) {
+                                quantity = int.tryParse(val) ?? 1;
+                              },
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                   actions: [
                     TextButton(
@@ -116,26 +152,43 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
                     ),
                     ElevatedButton(
                       onPressed:
-                          products.isEmpty || selectedProduct == null
-                              ? null
+                          tempSelectedProduct == null
+                              ? null // Deshabilitar si no hay producto seleccionado
                               : () {
-                                if (quantity > 0 &&
-                                    selectedProduct!.stock >= quantity) {
-                                  _addProductToOrder(
-                                    selectedProduct!,
-                                    quantity,
-                                  );
-                                  Navigator.of(dialogContext).pop();
-                                } else {
-                                  // Mostrar error de stock si no se validó antes
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                // Validar cantidad antes de agregar
+                                final qty = int.tryParse(
+                                  quantity.toString(),
+                                ); // Re-parsear por si acaso
+                                if (qty == null || qty <= 0) {
+                                  ScaffoldMessenger.of(
+                                    dialogContext,
+                                  ).showSnackBar(
                                     const SnackBar(
                                       content: Text(
-                                        'Cantidad inválida o stock insuficiente.',
+                                        'La cantidad debe ser mayor a 0.',
                                       ),
                                     ),
                                   );
+                                  return;
                                 }
+                                if (tempSelectedProduct != null &&
+                                    qty > tempSelectedProduct!.stock) {
+                                  ScaffoldMessenger.of(
+                                    dialogContext,
+                                  ).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Stock insuficiente. Disponible: ${tempSelectedProduct!.stock}',
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                _addProductToOrder(
+                                  tempSelectedProduct!,
+                                  quantity,
+                                );
+                                Navigator.of(dialogContext).pop();
                               },
                       child: const Text('Agregar'),
                     ),
@@ -144,16 +197,24 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
               },
             );
           },
+          loading:
+              () => const AlertDialog(
+                title: Text('Cargando productos...'),
+                content: LoadingWidget(showMessage: false),
+              ),
+          error:
+              (err, stack) => AlertDialog(
+                title: const Text('Error'),
+                content: Text('No se pudieron cargar los productos: $err'),
+                actions: <Widget>[
+                  TextButton(
+                    child: const Text('Cerrar'),
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                  ),
+                ],
+              ),
         );
       },
-      loading:
-          () => ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Cargando productos...')),
-          ),
-      error:
-          (err, stack) => ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error productos: $err'))),
     );
   }
 
@@ -229,47 +290,59 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               UserSelector(
-                label: 'Seleccionar Cliente',
+                label: 'Cliente:', // Etiqueta más corta
                 selectedUser: _selectedUser,
                 onUserSelected: (user) {
                   setState(() {
                     _selectedUser = user;
                   });
                 },
-                hint: 'Seleccione el cliente para este pedido',
+                hint: 'Seleccione un cliente', // Hint más corto
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16), // Ajustar espaciado
               ElevatedButton.icon(
-                icon: const Icon(Icons.add_shopping_cart),
+                icon: const Icon(
+                  Icons.add_shopping_cart_outlined,
+                ), // Icono más adecuado
                 label: const Text('Añadir Producto al Pedido'),
                 onPressed: _showSelectProductDialog,
+                style: ElevatedButton.styleFrom(
+                  // padding: const EdgeInsets.symmetric(vertical: 12) // Ajustar padding si es necesario
+                ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16), // Ajustar espaciado
               Text(
                 'Productos en el pedido:',
-                style: Theme.of(context).textTheme.headlineSmall,
+                style:
+                    Theme.of(context)
+                        .textTheme
+                        .titleLarge, // Estilo más prominente para el título de la sección
               ),
+              const SizedBox(height: 8),
               Expanded(
                 child:
                     _currentOrderItems.isEmpty
                         ? EmptyState(
+                          // Tu widget EmptyState
                           title: 'Carrito vacío',
-                          subtitle: 'Añade productos para crear tu pedido',
-                          icon: Icons.shopping_cart_outlined,
-                          actionLabel: 'Añadir Producto',
-                          onActionPressed: _showSelectProductDialog,
+                          subtitle:
+                              'Añade productos para crear tu pedido.', // Ya no necesita el botón aquí
+                          icon:
+                              Icons
+                                  .production_quantity_limits_rounded, // Icono alternativo
                         )
                         : ListView.builder(
                           itemCount: _currentOrderItems.length,
                           itemBuilder: (context, index) {
                             final item = _currentOrderItems[index];
+                            // Usando tu OrderItemTile
                             return OrderItemTile(
                               orderItem: item,
-                              showTotal: true,
+                              showTotal: true, // Mostrar subtotal por ítem
                               trailing: IconButton(
-                                icon: const Icon(
+                                icon: Icon(
                                   Icons.remove_circle_outline,
-                                  color: Colors.red,
+                                  color: Theme.of(context).colorScheme.error,
                                 ),
                                 onPressed: () {
                                   setState(() {
@@ -282,12 +355,13 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
                           },
                         ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16), // Ajustar espaciado
               LoadingButton(
+                // Tu widget LoadingButton
                 text: 'Confirmar Pedido',
                 isLoading: createOrderState.isLoading,
                 onPressed: _submitOrder,
-                icon: Icons.check,
+                icon: Icons.check_circle_outline,
               ),
             ],
           ),

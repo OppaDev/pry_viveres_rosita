@@ -67,6 +67,7 @@ class UserSelector extends ConsumerWidget {
                             user.name,
                             style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(fontWeight: FontWeight.w500),
+                            overflow: TextOverflow.ellipsis, // Para el nombre
                           ),
                           Text(
                             user.email,
@@ -75,6 +76,7 @@ class UserSelector extends ConsumerWidget {
                             ).textTheme.bodySmall?.copyWith(
                               color: Theme.of(context).colorScheme.outline,
                             ),
+                            overflow: TextOverflow.ellipsis, // Para el email
                           ),
                         ],
                       ),

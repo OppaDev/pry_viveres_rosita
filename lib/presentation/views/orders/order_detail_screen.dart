@@ -13,15 +13,7 @@ class OrderDetailScreen extends ConsumerWidget {
     WidgetRef ref,
     String currentOrderId,
   ) {
-    // Cargar la lista de productos una vez cuando se abre el diálogo
-    // Usamos ref.read para no causar reconstrucciones innecesarias del diálogo si la lista cambia mientras está abierto
     final productsAsyncValue = ref.read(productsListProvider);
-    final formKey = GlobalKey<FormState>();
-    ProductEntity?
-    selectedProduct; // Para guardar el producto seleccionado en el Dropdown
-    final TextEditingController quantityController = TextEditingController(
-      text: '1',
-    ); // Cantidad inicial
 
     showDialog(
       context: context,
@@ -43,137 +35,192 @@ class OrderDetailScreen extends ConsumerWidget {
               );
             }
 
-            // Usamos StatefulBuilder para que el Dropdown y la validación de cantidad puedan actualizarse
+            // Variables para manejar el estado dentro del diálogo
+            ProductEntity? tempSelectedProduct;
+            int quantity = 1;
+
             return StatefulBuilder(
-              builder: (BuildContext context, StateSetter setDialogState) {
+              // Para manejar el estado de la cantidad internamente
+              builder: (stfContext, setDialogState) {
                 return AlertDialog(
                   title: const Text('Agregar Producto al Pedido'),
-                  content: Form(
-                    key: formKey,
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 8.0,
+                    horizontal: 0,
+                  ), // Ajustar padding
+                  content: SizedBox(
+                    // Darle un tamaño al contenido del diálogo
+                    width: double.maxFinite,
+                    height:
+                        MediaQuery.of(context).size.height *
+                        0.5, // ~50% de la altura de pantalla
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        DropdownButtonFormField<ProductEntity>(
-                          value: selectedProduct,
-                          hint: const Text('Seleccione un producto'),
-                          isExpanded: true,
-                          items:
-                              products.map((ProductEntity product) {
-                                return DropdownMenuItem<ProductEntity>(
-                                  value: product,
-                                  child: Text(
-                                    "${product.name} (Stock: ${product.stock})",
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                );
-                              }).toList(),
-                          onChanged: (ProductEntity? newValue) {
-                            setDialogState(() {
-                              // Actualiza el estado del diálogo
-                              selectedProduct = newValue;
-                              // Opcional: podrías resetear la cantidad o validarla aquí
-                            });
-                          },
-                          validator:
-                              (value) =>
-                                  value == null
-                                      ? 'Seleccione un producto'
-                                      : null,
-                          decoration: const InputDecoration(
-                            labelText: 'Producto',
+                      children: [
+                        Expanded(
+                          child: ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: products.length,
+                            itemBuilder: (context, index) {
+                              final product = products[index];
+                              bool isSelected =
+                                  tempSelectedProduct?.id == product.id;
+                              return ListTile(
+                                leading:
+                                    product.image.isNotEmpty
+                                        ? CircleAvatar(
+                                          backgroundImage: NetworkImage(
+                                            product.image,
+                                          ),
+                                        )
+                                        : const CircleAvatar(
+                                          child: Icon(Icons.inventory_2),
+                                        ),
+                                title: Text(
+                                  product.name,
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                                subtitle: Text(
+                                  "Stock: ${product.stock} - \$${product.price.toStringAsFixed(2)}",
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                                tileColor:
+                                    isSelected
+                                        ? Theme.of(context)
+                                            .colorScheme
+                                            .primaryContainer
+                                            .withOpacity(0.3)
+                                        : null,
+                                onTap: () {
+                                  setDialogState(() {
+                                    tempSelectedProduct = product;
+                                  });
+                                },
+                              );
+                            },
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: quantityController,
-                          decoration: const InputDecoration(
-                            labelText: 'Cantidad',
+                        if (tempSelectedProduct !=
+                            null) // Mostrar campo de cantidad solo si se seleccionó un producto
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: TextFormField(
+                              initialValue: quantity.toString(),
+                              decoration: InputDecoration(
+                                labelText:
+                                    'Cantidad para ${tempSelectedProduct!.name}',
+                                hintText: 'Max: ${tempSelectedProduct!.stock}',
+                                border: const OutlineInputBorder(),
+                              ),
+                              keyboardType: TextInputType.number,
+                              onChanged: (val) {
+                                quantity = int.tryParse(val) ?? 1;
+                              },
+                            ),
                           ),
-                          keyboardType: TextInputType.number,
-                          validator: (value) {
-                            if (value == null || value.isEmpty)
-                              return 'Ingrese cantidad';
-                            final qty = int.tryParse(value);
-                            if (qty == null || qty <= 0)
-                              return 'Cantidad debe ser mayor a 0';
-                            if (selectedProduct != null &&
-                                qty > selectedProduct!.stock) {
-                              return 'Stock insuficiente (Disp: ${selectedProduct!.stock})';
-                            }
-                            return null;
-                          },
-                        ),
                       ],
                     ),
                   ),
-                  actions: <Widget>[
+                  actions: [
                     TextButton(
-                      child: const Text('Cancelar'),
                       onPressed: () => Navigator.of(dialogContext).pop(),
+                      child: const Text('Cancelar'),
                     ),
                     ElevatedButton(
+                      onPressed:
+                          tempSelectedProduct == null
+                              ? null // Deshabilitar si no hay producto seleccionado
+                              : () async {
+                                // Validar cantidad antes de agregar
+                                final qty = int.tryParse(
+                                  quantity.toString(),
+                                ); // Re-parsear por si acaso
+                                if (qty == null || qty <= 0) {
+                                  ScaffoldMessenger.of(
+                                    dialogContext,
+                                  ).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'La cantidad debe ser mayor a 0.',
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                if (tempSelectedProduct != null &&
+                                    qty > tempSelectedProduct!.stock) {
+                                  ScaffoldMessenger.of(
+                                    dialogContext,
+                                  ).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Stock insuficiente. Disponible: ${tempSelectedProduct!.stock}',
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                final int productId = tempSelectedProduct!.id;
+                                final int validQuantity = qty;
+
+                                try {
+                                  await ref
+                                      .read(
+                                        addOrderItemNotifierProvider.notifier,
+                                      )
+                                      .addOrderItem(
+                                        orderId: currentOrderId,
+                                        productId: productId,
+                                        quantity: validQuantity,
+                                      );
+                                  ref.invalidate(
+                                    orderDetailProvider(currentOrderId),
+                                  ); // Recargar detalles
+                                  Navigator.of(dialogContext).pop();
+                                  ScaffoldMessenger.of(
+                                    dialogContext,
+                                  ).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        '${tempSelectedProduct!.name} agregado!',
+                                        style: TextStyle(
+                                          color:
+                                              Theme.of(
+                                                dialogContext,
+                                              ).colorScheme.onPrimaryContainer,
+                                        ),
+                                      ),
+                                      backgroundColor:
+                                          Theme.of(
+                                            dialogContext,
+                                          ).colorScheme.primaryContainer,
+                                    ),
+                                  );
+                                } catch (e) {
+                                  Navigator.of(dialogContext).pop();
+                                  ScaffoldMessenger.of(
+                                    dialogContext,
+                                  ).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Error: ${e.toString()}',
+                                        style: TextStyle(
+                                          color:
+                                              Theme.of(
+                                                dialogContext,
+                                              ).colorScheme.onErrorContainer,
+                                        ),
+                                      ),
+                                      backgroundColor:
+                                          Theme.of(
+                                            dialogContext,
+                                          ).colorScheme.errorContainer,
+                                    ),
+                                  );
+                                }
+                              },
                       child: const Text('Agregar'),
-                      onPressed: () async {
-                        if (formKey.currentState!.validate()) {
-                          if (selectedProduct == null)
-                            return; // Doble chequeo por si acaso
-
-                          final int productId = selectedProduct!.id;
-                          final int quantity = int.parse(
-                            quantityController.text,
-                          );
-
-                          try {
-                            await ref
-                                .read(addOrderItemNotifierProvider.notifier)
-                                .addOrderItem(
-                                  orderId: currentOrderId,
-                                  productId: productId,
-                                  quantity: quantity,
-                                );
-                            ref.invalidate(
-                              orderDetailProvider(currentOrderId),
-                            ); // Recargar detalles
-                            Navigator.of(dialogContext).pop();
-                            ScaffoldMessenger.of(dialogContext).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  '${selectedProduct!.name} agregado!',
-                                  style: TextStyle(
-                                    color:
-                                        Theme.of(
-                                          dialogContext,
-                                        ).colorScheme.onPrimaryContainer,
-                                  ),
-                                ),
-                                backgroundColor:
-                                    Theme.of(
-                                      dialogContext,
-                                    ).colorScheme.primaryContainer,
-                              ),
-                            );
-                          } catch (e) {
-                            Navigator.of(dialogContext).pop();
-                            ScaffoldMessenger.of(dialogContext).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Error: ${e.toString()}',
-                                  style: TextStyle(
-                                    color:
-                                        Theme.of(
-                                          dialogContext,
-                                        ).colorScheme.onErrorContainer,
-                                  ),
-                                ),
-                                backgroundColor:
-                                    Theme.of(
-                                      dialogContext,
-                                    ).colorScheme.errorContainer,
-                              ),
-                            );
-                          }
-                        }
-                      },
                     ),
                   ],
                 );
