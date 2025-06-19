@@ -3,125 +3,201 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pry_viveres_rosita/domain/entities/order_item_entity.dart';
 import 'package:pry_viveres_rosita/presentation/providers/order_providers.dart';
 import 'package:pry_viveres_rosita/presentation/widgets/widgets.dart';
-// Importar pantalla de selección de productos si es necesario para agregar items
-// import 'package:pry_viveres_rosita/presentation/views/products/select_product_screen.dart';
+import 'package:pry_viveres_rosita/domain/entities/product_entity.dart';
 
 class OrderDetailScreen extends ConsumerWidget {
   final String orderId;
   const OrderDetailScreen({super.key, required this.orderId});
-
   void _showAddProductDialog(
     BuildContext context,
     WidgetRef ref,
     String currentOrderId,
   ) {
-    final TextEditingController productIdController = TextEditingController();
-    final TextEditingController quantityController = TextEditingController();
+    // Cargar la lista de productos una vez cuando se abre el diálogo
+    // Usamos ref.read para no causar reconstrucciones innecesarias del diálogo si la lista cambia mientras está abierto
+    final productsAsyncValue = ref.read(productsListProvider);
     final formKey = GlobalKey<FormState>();
+    ProductEntity?
+    selectedProduct; // Para guardar el producto seleccionado en el Dropdown
+    final TextEditingController quantityController = TextEditingController(
+      text: '1',
+    ); // Cantidad inicial
 
-    // Idealmente, aquí tendrías un selector de productos en lugar de pedir el ID
-    // Pero para un ejemplo rápido:
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Agregar Producto al Pedido'),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                TextFormField(
-                  controller: productIdController,
-                  decoration: const InputDecoration(
-                    labelText: 'ID del Producto',
+        return productsAsyncValue.when(
+          data: (products) {
+            if (products.isEmpty) {
+              return AlertDialog(
+                title: const Text('Agregar Producto al Pedido'),
+                content: const Text(
+                  'No hay productos disponibles para agregar.',
+                ),
+                actions: <Widget>[
+                  TextButton(
+                    child: const Text('Cerrar'),
+                    onPressed: () => Navigator.of(dialogContext).pop(),
                   ),
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value == null || value.isEmpty)
-                      return 'Ingrese ID de producto';
-                    if (int.tryParse(value) == null)
-                      return 'ID debe ser numérico';
-                    return null;
-                  },
-                ),
-                TextFormField(
-                  controller: quantityController,
-                  decoration: const InputDecoration(labelText: 'Cantidad'),
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value == null || value.isEmpty)
-                      return 'Ingrese cantidad';
-                    final qty = int.tryParse(value);
-                    if (qty == null || qty <= 0)
-                      return 'Cantidad debe ser mayor a 0';
-                    return null;
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancelar'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-            ),
-            ElevatedButton(
-              child: const Text('Agregar'),
-              onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  final productId = int.parse(productIdController.text);
-                  final quantity = int.parse(quantityController.text);
+                ],
+              );
+            }
 
-                  try {
-                    // Usar el notifier para agregar el item
-                    await ref
-                        .read(addOrderItemNotifierProvider.notifier)
-                        .addOrderItem(
-                          orderId: currentOrderId,
-                          productId: productId,
-                          quantity: quantity,
-                        );
-                    // Invalidar para recargar los detalles del pedido
-                    ref.invalidate(orderDetailProvider(currentOrderId));
-                    Navigator.of(dialogContext).pop(); // Cierra el dialogo
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Producto agregado correctamente!',
-                          style: TextStyle(
-                            color:
-                                Theme.of(
-                                  context,
-                                ).colorScheme.onPrimaryContainer,
+            // Usamos StatefulBuilder para que el Dropdown y la validación de cantidad puedan actualizarse
+            return StatefulBuilder(
+              builder: (BuildContext context, StateSetter setDialogState) {
+                return AlertDialog(
+                  title: const Text('Agregar Producto al Pedido'),
+                  content: Form(
+                    key: formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        DropdownButtonFormField<ProductEntity>(
+                          value: selectedProduct,
+                          hint: const Text('Seleccione un producto'),
+                          isExpanded: true,
+                          items:
+                              products.map((ProductEntity product) {
+                                return DropdownMenuItem<ProductEntity>(
+                                  value: product,
+                                  child: Text(
+                                    "${product.name} (Stock: ${product.stock})",
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                );
+                              }).toList(),
+                          onChanged: (ProductEntity? newValue) {
+                            setDialogState(() {
+                              // Actualiza el estado del diálogo
+                              selectedProduct = newValue;
+                              // Opcional: podrías resetear la cantidad o validarla aquí
+                            });
+                          },
+                          validator:
+                              (value) =>
+                                  value == null
+                                      ? 'Seleccione un producto'
+                                      : null,
+                          decoration: const InputDecoration(
+                            labelText: 'Producto',
                           ),
                         ),
-                        backgroundColor:
-                            Theme.of(context).colorScheme.primaryContainer,
-                      ),
-                    );
-                  } catch (e) {
-                    Navigator.of(dialogContext).pop(); // Cierra el dialogo
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Error al agregar: ${e.toString()}',
-                          style: TextStyle(
-                            color:
-                                Theme.of(context).colorScheme.onErrorContainer,
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: quantityController,
+                          decoration: const InputDecoration(
+                            labelText: 'Cantidad',
                           ),
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value == null || value.isEmpty)
+                              return 'Ingrese cantidad';
+                            final qty = int.tryParse(value);
+                            if (qty == null || qty <= 0)
+                              return 'Cantidad debe ser mayor a 0';
+                            if (selectedProduct != null &&
+                                qty > selectedProduct!.stock) {
+                              return 'Stock insuficiente (Disp: ${selectedProduct!.stock})';
+                            }
+                            return null;
+                          },
                         ),
-                        backgroundColor:
-                            Theme.of(context).colorScheme.errorContainer,
-                      ),
-                    );
-                  }
-                }
+                      ],
+                    ),
+                  ),
+                  actions: <Widget>[
+                    TextButton(
+                      child: const Text('Cancelar'),
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                    ),
+                    ElevatedButton(
+                      child: const Text('Agregar'),
+                      onPressed: () async {
+                        if (formKey.currentState!.validate()) {
+                          if (selectedProduct == null)
+                            return; // Doble chequeo por si acaso
+
+                          final int productId = selectedProduct!.id;
+                          final int quantity = int.parse(
+                            quantityController.text,
+                          );
+
+                          try {
+                            await ref
+                                .read(addOrderItemNotifierProvider.notifier)
+                                .addOrderItem(
+                                  orderId: currentOrderId,
+                                  productId: productId,
+                                  quantity: quantity,
+                                );
+                            ref.invalidate(
+                              orderDetailProvider(currentOrderId),
+                            ); // Recargar detalles
+                            Navigator.of(dialogContext).pop();
+                            ScaffoldMessenger.of(dialogContext).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  '${selectedProduct!.name} agregado!',
+                                  style: TextStyle(
+                                    color:
+                                        Theme.of(
+                                          dialogContext,
+                                        ).colorScheme.onPrimaryContainer,
+                                  ),
+                                ),
+                                backgroundColor:
+                                    Theme.of(
+                                      dialogContext,
+                                    ).colorScheme.primaryContainer,
+                              ),
+                            );
+                          } catch (e) {
+                            Navigator.of(dialogContext).pop();
+                            ScaffoldMessenger.of(dialogContext).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Error: ${e.toString()}',
+                                  style: TextStyle(
+                                    color:
+                                        Theme.of(
+                                          dialogContext,
+                                        ).colorScheme.onErrorContainer,
+                                  ),
+                                ),
+                                backgroundColor:
+                                    Theme.of(
+                                      dialogContext,
+                                    ).colorScheme.errorContainer,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                    ),
+                  ],
+                );
               },
-            ),
-          ],
+            );
+          },
+          loading:
+              () => const AlertDialog(
+                title: Text('Cargando productos...'),
+                content: LoadingWidget(
+                  showMessage: false,
+                ), // Usar tu widget de carga
+              ),
+          error:
+              (err, stack) => AlertDialog(
+                title: const Text('Error'),
+                content: Text('No se pudieron cargar los productos: $err'),
+                actions: <Widget>[
+                  TextButton(
+                    child: const Text('Cerrar'),
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                  ),
+                ],
+              ),
         );
       },
     );
@@ -171,9 +247,9 @@ class OrderDetailScreen extends ConsumerWidget {
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color:
                         order.state == 'Entregado'
-                            ? Colors.green
+                            ? Colors.green.shade600
                             : (order.state == 'Cancelado'
-                                ? Colors.red
+                                ? Colors.red.shade600
                                 : Theme.of(context).colorScheme.secondary),
                   ),
                 ),
@@ -188,10 +264,14 @@ class OrderDetailScreen extends ConsumerWidget {
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 if (order.orderItems.isEmpty)
-                  const EmptyState(
-                    title: 'Sin productos',
-                    subtitle: 'Este pedido no tiene productos agregados',
-                    icon: Icons.inventory_outlined,
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20.0),
+                    child: EmptyState(
+                      // Usando tu widget reutilizable
+                      title: 'Sin productos',
+                      subtitle: 'Este pedido no tiene productos agregados.',
+                      icon: Icons.inventory_2_outlined,
+                    ),
                   )
                 else
                   ListView.builder(
@@ -206,15 +286,20 @@ class OrderDetailScreen extends ConsumerWidget {
                       );
                     },
                   ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
                 Center(
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.add_shopping_cart),
-                    label: const Text('Agregar Producto'),
+                  child: LoadingButton(
+                    // Usando tu widget reutilizable
+                    text: 'Agregar Producto',
+                    icon: Icons.add_shopping_cart,
+                    isLoading:
+                        ref
+                            .watch(addOrderItemNotifierProvider)
+                            .isLoading, // Escucha el estado de carga
                     onPressed:
                         (order.state == 'Cancelado' ||
                                 order.state == 'Entregado')
-                            ? null // Deshabilitar si el pedido está cancelado o entregado
+                            ? null
                             : () =>
                                 _showAddProductDialog(context, ref, orderId),
                   ),
