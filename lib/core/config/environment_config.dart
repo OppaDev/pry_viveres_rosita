@@ -8,23 +8,22 @@ class EnvironmentConfig {
   /// Configuración para diferentes entornos
   static const Map<Environment, Map<String, dynamic>> _config = {
     Environment.development: {
-      'baseUrl':
-          'http://192.168.0.101:3000/api/v1', // Actualiza con tu IP local
+      'baseUrl': 'http://10.40.13.25:3000/api/v1', // Actualiza con tu IP local
       'enableLogging': true,
-      'connectionTimeout': 30,
-      'receiveTimeout': 30,
+      'connectionTimeout': 10, // Reducido para desarrollo local
+      'receiveTimeout': 15, // Reducido para mejorar respuesta
     },
     Environment.staging: {
       'baseUrl': 'https://staging-api.viveresrosita.com/api/v1',
       'enableLogging': true,
-      'connectionTimeout': 30,
-      'receiveTimeout': 30,
+      'connectionTimeout': 20, // Reducido para staging
+      'receiveTimeout': 25, // Reducido para staging
     },
     Environment.production: {
       'baseUrl': 'https://api.viveresrosita.com/api/v1',
       'enableLogging': false,
-      'connectionTimeout': 15,
-      'receiveTimeout': 15,
+      'connectionTimeout': 10, // Más agresivo para producción
+      'receiveTimeout': 15, // Más agresivo para producción
     },
   };
 

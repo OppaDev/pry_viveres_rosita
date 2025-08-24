@@ -1,17 +1,6 @@
 import 'environment_config.dart';
 
 class AppConfig {
-  // Configuración de la URL base de la API (se toma del entorno actual)
-  //
-  // IMPORTANTE: Para cambiar la URL, modifica environment_config.dart
-  //
-  // Para desarrollo local:
-  // - Emulador Android: 'http://10.0.2.2:3000/api/v1'
-  // - Emulador iOS: 'http://localhost:3000/api/v1'
-  // - Dispositivo físico en la misma red Wi-Fi: 'http://TU_IP_LOCAL:3000/api/v1'
-  //
-  // Para producción:
-  // - Servidor real: 'https://tu-dominio.com/api/v1'
 
   static String get baseUrl => EnvironmentConfig.baseUrl;
 
